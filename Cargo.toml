@@ -1,0 +1,28 @@
+[package]
+name = "pkgmgr-info"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/SzilvasiPeter/pkginfo"
+description = "Reports the system package manager information"
+readme = "README.md"
+keywords = ["package-manager", "system-info", "platform-detection"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
+nursery = "deny"
+cargo = "deny"
