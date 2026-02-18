@@ -61,12 +61,10 @@ jobs:
         with:
           name: coverage-html
           path: target/coverage
-
       - name: Prepare Pages content
         run: |
           mkdir -p site/coverage
           cp target/coverage/html/index.html site/coverage/index.html
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -75,3 +73,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Print Pages URL
+        run: echo "GitHub Pages available at ${{ steps.deploy.outputs.page_url }}"
