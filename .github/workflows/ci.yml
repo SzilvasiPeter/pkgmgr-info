@@ -64,14 +64,14 @@ jobs:
       - name: Prepare Pages content
         run: |
           mkdir -p site/coverage
-          cp target/coverage/html/index.html site/coverage/index.html
+          cp target/coverage/html site/coverage/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploy
         uses: actions/deploy-pages@v4
       - name: Print Pages URL
-        run: echo "GitHub Pages available at ${{ steps.deployment.outputs.page_url }}"
+        run: echo "GitHub Pages available at ${{ steps.deploy.outputs.page_url }}/coverage/index.html"
