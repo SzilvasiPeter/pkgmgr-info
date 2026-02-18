@@ -20,9 +20,10 @@ jobs:
           components: rustfmt, clippy
       - name: Install nigthly components
         run: rustup toolchain install nightly --component llvm-tools-preview
-      - uses: taiki-e/cache-cargo-install-action@v2
+      - uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit,cargo-deny,cargo-udeps,cargo-geiger,cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
         run: cargo fmt --all -- --check
