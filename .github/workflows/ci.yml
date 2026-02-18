@@ -42,11 +42,11 @@ jobs:
         run: cargo geiger --all-features
 
       - name: Test Coverage
-        run: cargo llvm-cov --all-features --html --output-dir target/coverage/html
+        run: cargo llvm-cov --all-features --html --output-dir target/coverage
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-html
-          path: target/coverage/html
+          path: target/coverage
 
   pages:
     if: github.event_name != 'pull_request'
@@ -55,17 +55,23 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/configure-pages@v5
-      - uses: actions/download-artifact@v4
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
         with:
           name: coverage-html
-          path: target/coverage/html
-      - uses: actions/upload-pages-artifact@v3
+          path: target/coverage
+
+      - name: Prepare Pages content
+        run: |
+          mkdir -p site/coverage
+          cp target/coverage/html/index.html site/coverage/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: target/coverage/html
-      - id: deploy
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4

@@ -11,7 +11,7 @@ test:
     cargo test --all-targets --all-features
 
 cov:
-    cargo llvm-cov --all-features --html --output-dir target/coverage/html
+    cargo llvm-cov --all-features --html --output-dir target/coverage
     cargo llvm-cov report
 
 sec:
