@@ -74,4 +74,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Print Pages URL
-        run: echo "GitHub Pages available at ${{ steps.deploy.outputs.page_url }}"
+        run: echo "GitHub Pages available at ${{ steps.deployment.outputs.page_url }}"
