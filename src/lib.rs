@@ -144,6 +144,13 @@ mod tests {
     }
 
     #[test]
+    fn rejects_unknown_id_like() {
+        let sample = "ID_LIKE=unknown";
+        let err = detect_from_os_release(sample).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    }
+
+    #[test]
     fn rejects_unknown_id() {
         let sample = "ID=unknown\n";
         let err = detect_from_os_release(sample).unwrap_err();
