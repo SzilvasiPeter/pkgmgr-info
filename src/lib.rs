@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 use std::fs;
 use std::io::{self, Error, ErrorKind};
+use std::process::{Command, Output};
 
 const LINUX_DISTROS: [(&str, PackageManager); 8] = [
     ("alpine", PackageManager::Apk),
@@ -33,6 +34,27 @@ impl PackageManager {
             Self::Pacman => "pacman",
             Self::Portage => "portage",
             Self::Zypper => "zypper",
+        }
+    }
+
+    /// Returns the installed package count for the manager.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command fails, output is invalid UTF-8,
+    /// output is empty, or the count cannot be parsed as an integer.
+    pub fn package_count(&self) -> io::Result<u64> {
+        self.package_count_with(run_count)
+    }
+
+    fn package_count_with(self, run: fn(&str) -> io::Result<u64>) -> io::Result<u64> {
+        #[allow(clippy::literal_string_with_formatting_args)]
+        match self {
+            Self::Apk => run("apk info | wc -l"),
+            Self::Apt => run("dpkg-query -f '${binary:Package}\\n' -W | wc -l"),
+            Self::Dnf | Self::Zypper => run("rpm -qa | wc -l"),
+            Self::Pacman => run("pacman -Q | wc -l"),
+            Self::Portage => run("qlist -I | wc -l"),
         }
     }
 }
@@ -87,9 +109,41 @@ fn read_key<'a>(os: &'a str, prefix: &str) -> Option<&'a str> {
         .map(|(_, val)| val.trim_matches('"'))
 }
 
+fn run_cmd(cmd: &str) -> io::Result<Output> {
+    Command::new("sh").arg("-c").arg(cmd).output()
+}
+
+fn run_count(cmd: &str) -> io::Result<u64> {
+    run_count_with(cmd, run_cmd)
+}
+
+fn run_count_with(cmd: &str, run: fn(&str) -> io::Result<Output>) -> io::Result<u64> {
+    let output = run(cmd)?;
+    if !output.status.success() {
+        return Err(Error::other("command failed"));
+    }
+
+    let text = std::str::from_utf8(&output.stdout)
+        .map_err(|_| Error::new(ErrorKind::InvalidData, "non-utf8 output"))?;
+    parse_count(text)
+}
+
+fn parse_count(text: &str) -> io::Result<u64> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidData, "empty output"));
+    }
+
+    trimmed
+        .parse::<u64>()
+        .map_err(|_| Error::new(ErrorKind::InvalidData, "invalid count"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::process::ExitStatusExt;
+    use std::process::ExitStatus;
 
     #[test]
     fn supported_distro_count_matches_expected() {
@@ -155,5 +209,118 @@ mod tests {
         let sample = "ID=unknown\n";
         let err = detect_from_os_release(sample).unwrap_err();
         assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    }
+
+    fn fake_run(cmd: &str) -> io::Result<u64> {
+        match cmd {
+            "apk info | wc -l" => Ok(10),
+            "dpkg-query -f '${binary:Package}\\n' -W | wc -l" => Ok(20),
+            "rpm -qa | wc -l" => Ok(30),
+            "pacman -Q | wc -l" => Ok(40),
+            "qlist -I | wc -l" => Ok(50),
+            _ => Err(Error::new(ErrorKind::InvalidInput, "unknown cmd")),
+        }
+    }
+
+    #[test]
+    fn package_count_uses_expected_commands() {
+        let cases = [
+            (PackageManager::Apk, 10),
+            (PackageManager::Apt, 20),
+            (PackageManager::Dnf, 30),
+            (PackageManager::Pacman, 40),
+            (PackageManager::Portage, 50),
+            (PackageManager::Zypper, 30),
+        ];
+
+        for (pm, expected) in cases {
+            let count = pm.package_count_with(fake_run).expect("count ok");
+            assert_eq!(count, expected);
+        }
+    }
+
+    #[test]
+    fn fake_run_rejects_unknown_command() {
+        let err = fake_run("nope").unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn fake_output_ok(_cmd: &str) -> io::Result<Output> {
+        Ok(Output {
+            status: ExitStatus::from_raw(0),
+            stdout: b"42\n".to_vec(),
+            stderr: Vec::new(),
+        })
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn fake_output_bad(_cmd: &str) -> io::Result<Output> {
+        Ok(Output {
+            status: ExitStatus::from_raw(1),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        })
+    }
+
+    fn fake_output_err(_cmd: &str) -> io::Result<Output> {
+        Err(Error::new(ErrorKind::NotFound, "missing cmd"))
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn fake_output_non_utf8(_cmd: &str) -> io::Result<Output> {
+        Ok(Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![0xff, 0xfe, 0xfd],
+            stderr: Vec::new(),
+        })
+    }
+
+    #[test]
+    fn run_count_with_parses_stdout() {
+        let count = run_count_with("ignored", fake_output_ok).expect("count ok");
+        assert_eq!(count, 42);
+    }
+
+    #[test]
+    fn run_count_with_fails_on_status() {
+        let err = run_count_with("ignored", fake_output_bad).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Other);
+    }
+
+    #[test]
+    fn run_count_with_rejects_non_utf8() {
+        let err = run_count_with("ignored", fake_output_non_utf8).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn run_count_with_propagates_runner_error() {
+        let err = run_count_with("ignored", fake_output_err).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn run_count_reports_missing_command_failure() {
+        let err = run_count("cmd-that-should-not-exist").unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Other);
+    }
+
+    #[test]
+    fn parse_count_rejects_empty() {
+        let err = parse_count("   ").unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn parse_count_rejects_invalid() {
+        let err = parse_count("nope").unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn parse_count_accepts_valid() {
+        let count = parse_count(" 123 ").expect("count ok");
+        assert_eq!(count, 123);
     }
 }
