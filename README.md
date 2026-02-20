@@ -1,4 +1,5 @@
 # pkgmgr-info
+![coverage](https://img.shields.io/endpoint?url=https://szilvasipeter.github.io/pkgmgr-info/coverage/badge.json)
 Rust crate and CLI that reports the system package manager information.
 
 ## Supported package managers

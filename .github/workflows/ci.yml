@@ -42,7 +42,15 @@ jobs:
         run: cargo geiger --all-features
 
       - name: Test Coverage
-        run: cargo llvm-cov --all-features --html --output-dir target/coverage
+        run: |
+          cargo llvm-cov --all-features --json --output-path target/coverage/coverage.json
+          cargo llvm-cov --all-features --html --output-dir target/coverage
+          pct=$(jq -r '.data[0].totals.lines.percent' target/coverage/coverage.json)
+          color=yellow
+          if [ "$(printf '%.0f' "$pct")" -ge 90 ]; then color=brightgreen; \
+          elif [ "$(printf '%.0f' "$pct")" -ge 80 ]; then color=green; fi
+          printf '{"schemaVersion":1,"label":"coverage","message":"%.1f%%","color":"%s"}' \
+            "$pct" "$color" > target/coverage/badge.json
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-html
@@ -65,6 +73,7 @@ jobs:
         run: |
           mkdir -p site/coverage
           cp -r target/coverage/html/* site/coverage/
+          cp target/coverage/badge.json site/coverage/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
