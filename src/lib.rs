@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+//! Detect the system package manager and report installed package counts.
 use std::fs;
 use std::io::{self, Error, ErrorKind};
 use std::process::{Command, Output};
@@ -14,17 +15,37 @@ const LINUX_DISTROS: [(&str, PackageManager); 8] = [
     ("opensuse", PackageManager::Zypper),
 ];
 
+/// Supported Linux package managers.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PackageManager {
+    /// Alpine `apk`.
     Apk,
+    /// Debian/Ubuntu `apt`.
     Apt,
+    /// Fedora/RHEL `dnf`.
     Dnf,
+    /// Arch `pacman`.
     Pacman,
+    /// Gentoo `portage`.
     Portage,
+    /// openSUSE `zypper`.
     Zypper,
 }
 
 impl PackageManager {
+    /// Detects the package manager by reading `/etc/os-release`.
+    ///
+    /// # Errors
+    ///
+    /// * `InvalidData` if the `/etc/os-release` does not contain an `ID=` and `ID_LIKE` entry.
+    /// * `InvalidInput` if the discovered ID is not in the supported list.
+    /// * Other `io::Error` variants propagated from `fs::read_to_string`.
+    pub fn detect() -> io::Result<Self> {
+        let os_release = fs::read_to_string("/etc/os-release")?;
+        detect_from_os_release(&os_release)
+    }
+
+    /// Returns the package manager command name.
     #[must_use]
     pub const fn name(&self) -> &'static str {
         match self {
@@ -57,18 +78,6 @@ impl PackageManager {
             Self::Portage => run("qlist -I | wc -l"),
         }
     }
-}
-
-/// Detects the package manager by reading `/etc/os-release`.
-///
-/// # Errors
-///
-/// * `InvalidData` if the `/etc/os-release` does not contain an `ID=` and `ID_LIKE` entry.
-/// * `InvalidInput` if the discovered ID is not in the supported list.
-/// * Other `io::Error` variants propagated from `fs::read_to_string`.
-pub fn detect_package_manager() -> io::Result<PackageManager> {
-    let os_release = fs::read_to_string("/etc/os-release")?;
-    detect_from_os_release(&os_release)
 }
 
 fn detect_from_os_release(os_release: &str) -> io::Result<PackageManager> {

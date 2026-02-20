@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
-use pkgmgr_info::detect_package_manager;
+use pkgmgr_info::PackageManager;
 use std::io;
 
 fn main() -> io::Result<()> {
-    let pkg_manager = detect_package_manager()?;
+    let pkg_manager = PackageManager::detect()?;
+    let pkg_name = pkg_manager.name();
     let pkg_count = pkg_manager.package_count()?;
-    println!("{pkg_count} ({})", pkg_manager.name());
+    println!("{pkg_count} ({pkg_name})");
     Ok(())
 }
