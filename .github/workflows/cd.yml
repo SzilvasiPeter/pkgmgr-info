@@ -28,7 +28,7 @@ jobs:
       - name: Create distribution
         run: |
           mkdir -p dist
-          cp "target/release/pkgmgrinfo" "dist/pkgmgrinfo-linux-x86_64"
+          cp "target/release/pkgmgrinfo" "dist/pkgmgrinfo-x86_64-unknown-linux-gnu"
 
       - name: GitHub release
         uses: softprops/action-gh-release@v2
