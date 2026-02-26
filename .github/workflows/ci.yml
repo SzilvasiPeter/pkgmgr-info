@@ -43,8 +43,8 @@ jobs:
 
       - name: Test Coverage
         run: |
-          cargo llvm-cov --all-features --json --output-path target/coverage/coverage.json
           cargo llvm-cov --all-features --html --output-dir target/coverage
+          cargo llvm-cov --all-features --json --output-path target/coverage/coverage.json
           pct=$(jq -r '.data[0].totals.lines.percent' target/coverage/coverage.json)
           color=yellow
           if [ "$(printf '%.0f' "$pct")" -ge 90 ]; then color=brightgreen; \
