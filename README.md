@@ -1,5 +1,7 @@
 # pkgmgr-info
 ![coverage](https://img.shields.io/endpoint?url=https://szilvasipeter.github.io/pkgmgr-info/coverage/badge.json)
+[![crates](https://img.shields.io/crates/v/pkgmgr-info)](https://crates.io/crates/pkgmgr-info)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/SzilvasiPeter/pkgmgr-info/blob/main/Cargo.toml#L15)
 
 Rust crate and CLI that reports the system package manager information.
 
